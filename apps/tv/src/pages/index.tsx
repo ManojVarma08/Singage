@@ -302,7 +302,7 @@ function TVScreen({ tvId, tvState }: { tvId: string; tvState: any }) {
         <div style={{ width: '100%', maxWidth: 520, background: '#ffffff', border: '1px solid #dbeafe', borderRadius: 28, padding: 42, textAlign: 'center', boxShadow: '0 24px 70px rgba(15,23,42,0.08)' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}><TVIcon size="lg" /></div>
           <div style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', marginBottom: 8 }}>{tvId} is waiting</div>
-          <div style={{ color: '#64748b', fontSize: 15 }}>Controller lo same PIN enter chesi photo upload cheyyi.</div>
+          <div style={{ color: '#64748b', fontSize: 15 }}>Open Controller with the same account and same TV PIN, then upload media to display it here.</div>
           <div style={{ marginTop: 24, display: 'inline-flex', alignItems: 'center', gap: 8, background: '#ecfdf5', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 999, padding: '8px 14px', fontSize: 13, fontWeight: 800 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', animation: 'blink 1.2s ease infinite', display: 'inline-block' }} />
             Ready
@@ -358,7 +358,7 @@ export default function App() {
   const [sideTab, setSideTab] = useState<'tv' | 'phone'>('tv');
   const [activeTVId, setActiveTVId] = useState('TV1');
   const [tvStates, setTvStates] = useState<Record<string, any>>({});
-  const [phoneView, setPhoneView] = useState<'home' | 'layout' | 'media' | 'switchTv'>('home');
+  const [phoneView, setPhoneView] = useState<'home' | 'layout' | 'media' | 'switchTv' | 'tvs'>('home');
   const [connectedTV, setConnectedTV] = useState<any>(null);
   const [selectedLayoutId, setSelectedLayoutId] = useState<string | null>(null);
   const [cells, setCells] = useState<any[]>([]);
@@ -583,14 +583,19 @@ export default function App() {
       <aside className="app-sidebar" style={{ width: 108, background: '#ffffff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '18px 10px', flexShrink: 0, overflowY: 'auto', boxShadow: '6px 0 24px rgba(15,23,42,0.04)' }}>
         <div style={{ marginBottom: 20 }}><TVIcon size="md" active /></div>
 
-        <button onClick={() => setSideTab('tv')} className={`nav-btn ${sideTab === 'tv' ? 'active' : ''}`}>
-          <span className="nav-icon">▣</span><span>TV</span>
+        <button onClick={() => { setSideTab('tv'); }} className={`nav-btn ${sideTab === 'tv' ? 'active' : ''}`}>
+          <span className="nav-icon">▣</span><span>Preview</span>
         </button>
 
         {appRole === 'controller' && (
-          <button onClick={() => setSideTab('phone')} className={`nav-btn ${sideTab === 'phone' ? 'active' : ''}`}>
-            <span className="nav-icon">▤</span><span>Control</span>
-          </button>
+          <>
+            <button onClick={() => { setSideTab('phone'); setPhoneView('home'); }} className={`nav-btn ${sideTab === 'phone' && phoneView !== 'tvs' ? 'active' : ''}`}>
+              <span className="nav-icon">▤</span><span>Control</span>
+            </button>
+            <button onClick={() => { setSideTab('phone'); setPhoneView('tvs'); }} className={`nav-btn ${sideTab === 'phone' && phoneView === 'tvs' ? 'active' : ''}`}>
+              <span className="nav-icon">▦</span><span>TVs</span>
+            </button>
+          </>
         )}
 
         <div style={{ width: 54, height: 1, background: '#e2e8f0', margin: '16px 0' }} />
@@ -646,9 +651,48 @@ export default function App() {
                 />
               )}
 
+              {phoneView === 'tvs' && (
+                <div>
+                  <div className="ios-title-card">
+                    <div>
+                      <div className="ios-kicker">All Displays</div>
+                      <div className="ios-title">Choose a TV</div>
+                      <div className="ios-subtitle">All 10 TVs under the same account. Select a TV to switch the controller to that display.</div>
+                    </div>
+                    <button onClick={handleLogout} className="ios-logout">Logout</button>
+                  </div>
+
+                  <div className="tv-list-grid">
+                    {TV_LIST.map(tv => {
+                      const isCurrent = loggedInTVId === tv.id;
+                      const live = tvStates[tv.id]?.cells?.some((c: any) => c?.mediaUrl);
+                      return (
+                        <button
+                          key={tv.id}
+                          onClick={() => handleControllerLogin(tv.id)}
+                          className={`ios-tv-card ${isCurrent ? 'selected' : ''}`}
+                        >
+                          <div className="ios-tv-left">
+                            <TVIcon active={isCurrent} live={live} size="sm" />
+                            <div>
+                              <div className="ios-tv-name">{tv.name}</div>
+                              <div className="ios-tv-location">{tv.location}</div>
+                            </div>
+                          </div>
+                          <div className="ios-tv-right">
+                            <span className="ios-pin">PIN {TV_PINS[tv.id]}</span>
+                            <span className={isCurrent ? 'ios-status active' : 'ios-status'}>{isCurrent ? 'Selected' : live ? 'Live' : 'Ready'}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {phoneView === 'home' && (
                 <div>
-                  <div className="hero-card">
+                  <div className="hero-card ios-home-hero">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                       <TVIcon size="lg" active live />
                       <div>
@@ -656,16 +700,8 @@ export default function App() {
                         <div style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>{loggedInTV.location} · Same account + same PIN</div>
                       </div>
                     </div>
+                    <button onClick={handleLogout} className="ios-logout hero-logout">Logout</button>
                   </div>
-
-                  <button onClick={() => setPhoneView('switchTv')} className="secondary-action">
-                    <div className="action-icon light">⇄</div>
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ color: '#0f172a', fontSize: 16, fontWeight: 900 }}>Change TV</div>
-                      <div style={{ color: '#64748b', fontSize: 13, marginTop: 3 }}>Switch from {loggedInTV.name} to another TV using PIN</div>
-                    </div>
-                    <span style={{ marginLeft: 'auto', fontSize: 26, color: '#94a3b8' }}>›</span>
-                  </button>
 
                   <button onClick={() => { setConnectedTV(loggedInTV); setPhoneView('layout'); }} className="primary-action">
                     <div className="action-icon">▦</div>
@@ -785,7 +821,10 @@ export default function App() {
         .tv-side-btn { width: 82px; border-radius: 16px; border: 1px solid transparent; background: transparent; padding: 8px 4px; margin-bottom: 6px; cursor: pointer; color: #64748b; font-size: 10px; font-weight: 900; transition: all 0.15s ease; }
         .tv-side-btn:hover { background: #f8fafc; }
         .tv-side-btn.active { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
-        .logout-btn { width: 82px; border: 1px solid #fecaca; background: #fff7f7; color: #ef4444; border-radius: 14px; padding: 10px 0; cursor: pointer; font-size: 11px; font-weight: 900; }
+        .logout-btn { width: 44px; height: 44px; border: 1px solid #fecaca; background: #fff7f7; color: #ef4444; border-radius: 14px; padding: 0; cursor: pointer; font-size: 0; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; }
+        .logout-btn::before { content: ''; width: 26px; height: 26px; display: block; background: #ef4444; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpath d='M16 17l5-5-5-5'/%3E%3Cpath d='M21 12H9'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpath d='M16 17l5-5-5-5'/%3E%3Cpath d='M21 12H9'/%3E%3C/svg%3E") center / contain no-repeat; transform: none; }
+        .ios-logout { font-size: 0 !important; width: 40px; height: 40px; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; border-color: #fecaca !important; background: #fff7f7 !important; color: #ef4444 !important; }
+        .ios-logout::before { content: ''; width: 24px; height: 24px; display: block; background: #ef4444; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpath d='M16 17l5-5-5-5'/%3E%3Cpath d='M21 12H9'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpath d='M16 17l5-5-5-5'/%3E%3Cpath d='M21 12H9'/%3E%3C/svg%3E") center / contain no-repeat; transform: none; }
         .top-pill { border-radius: 999px; padding: 7px 12px; display: flex; align-items: center; gap: 8px; font-size: 12px; border: 1px solid; }
         .top-pill.blue { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
         .top-pill.green { background: #ecfdf5; color: #16a34a; border-color: #bbf7d0; }
@@ -818,6 +857,24 @@ export default function App() {
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+        .ios-title-card { background: rgba(255,255,255,0.86); border: 1px solid rgba(226,232,240,0.95); border-radius: 28px; padding: 20px; margin-bottom: 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; box-shadow: 0 18px 50px rgba(15,23,42,0.07); backdrop-filter: blur(18px); }
+        .ios-kicker { color: #2563eb; font-size: 11px; font-weight: 900; letter-spacing: 1.6px; text-transform: uppercase; margin-bottom: 5px; }
+        .ios-title { color: #0f172a; font-size: 28px; font-weight: 950; letter-spacing: -0.8px; }
+        .ios-subtitle { color: #64748b; font-size: 13px; line-height: 1.5; margin-top: 6px; }
+        .ios-logout { border: 1px solid #fecaca; background: #fff7f7; color: #ef4444; border-radius: 999px; padding: 8px 14px; font-size: 12px; font-weight: 900; cursor: pointer; white-space: nowrap; }
+        .ios-home-hero { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .hero-logout { flex-shrink: 0; }
+        .tv-list-grid { display: grid; gap: 12px; }
+        .ios-tv-card { width: 100%; border: 1px solid #e2e8f0; background: rgba(255,255,255,0.9); border-radius: 24px; padding: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; box-shadow: 0 10px 30px rgba(15,23,42,0.05); transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; text-align: left; }
+        .ios-tv-card:hover { transform: translateY(-1px); border-color: #bfdbfe; box-shadow: 0 16px 34px rgba(37,99,235,0.12); }
+        .ios-tv-card.selected { border-color: #2563eb; background: linear-gradient(135deg, #ffffff, #eff6ff); box-shadow: 0 18px 44px rgba(37,99,235,0.18); }
+        .ios-tv-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .ios-tv-name { color: #0f172a; font-size: 15px; font-weight: 950; }
+        .ios-tv-location { color: #64748b; font-size: 12px; margin-top: 2px; }
+        .ios-tv-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+        .ios-pin { background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; border-radius: 999px; padding: 5px 9px; font-size: 11px; font-weight: 900; }
+        .ios-status { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; border-radius: 999px; padding: 5px 9px; font-size: 10px; font-weight: 900; }
+        .ios-status.active { background: #ecfdf5; color: #16a34a; border-color: #bbf7d0; }
 
         @media (max-width: 768px) {
           body { overflow: auto; }
@@ -830,39 +887,60 @@ export default function App() {
           .app-sidebar {
             order: 2 !important;
             width: 100% !important;
-            height: 72px !important;
-            min-height: 72px !important;
+            height: 76px !important;
+            min-height: 76px !important;
             border-right: none !important;
             border-top: 1px solid #e2e8f0 !important;
             flex-direction: row !important;
-            justify-content: flex-start !important;
+            justify-content: space-between !important;
             align-items: center !important;
-            gap: 8px !important;
-            padding: 8px 10px !important;
-            overflow-x: auto !important;
-            overflow-y: hidden !important;
+            gap: 6px !important;
+            padding: 8px 10px calc(8px + env(safe-area-inset-bottom)) !important;
+            overflow: visible !important;
             box-shadow: 0 -8px 24px rgba(15,23,42,0.06) !important;
           }
           .app-sidebar > div:first-child,
           .app-sidebar > div[style*="width: 54"],
-          .tv-side-btn,
-          .logout-btn {
+          .tv-side-btn {
             display: none !important;
+          }
+          .logout-btn {
+            width: 46px !important;
+            min-width: 46px !important;
+            height: 46px !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border-radius: 16px !important;
+            flex: 0 0 52px !important;
+            font-size: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          .logout-btn::before {
+            width: 24px !important;
+            height: 24px !important;
           }
           .nav-btn {
             width: auto !important;
-            min-width: 112px !important;
+            min-width: 0 !important;
+            flex: 1 1 0 !important;
+            max-width: 92px !important;
             height: 52px !important;
-            flex-direction: row !important;
+            flex-direction: column !important;
             justify-content: center !important;
-            padding: 0 14px !important;
+            padding: 4px 6px !important;
             margin: 0 !important;
             border-radius: 16px !important;
-            font-size: 12px !important;
+            font-size: 10px !important;
+            gap: 3px !important;
+          }
+          .nav-icon {
+            font-size: 17px !important;
           }
           .app-main {
             order: 1 !important;
-            height: calc(100dvh - 72px) !important;
+            height: calc(100dvh - 76px) !important;
             min-height: 0 !important;
             overflow: hidden !important;
           }
