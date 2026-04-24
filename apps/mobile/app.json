@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Signage Ctrl",
+    "slug": "signage-ctrl",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a1628"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.manojvarma.signagectrl",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used to scan TV QR codes and take photos for display",
+        "NSPhotoLibraryUsageDescription": "Used to pick images and videos to display on TVs",
+        "NSMicrophoneUsageDescription": "Required for video recording"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a1628"
+      },
+      "package": "com.manojvarma.signagectrl",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.INTERNET",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      ["expo-camera", { "cameraPermission": "Allow Signage Ctrl to scan TV QR codes." }],
+      ["expo-image-picker", { "photosPermission": "Allow Signage Ctrl to access photos for TVs." }]
+    ],
+    "extra": {
+      "eas": { "projectId": "12c0a107-0ed6-48fb-a25e-b5f41cfc24f1" }
+    }
+  }
+}

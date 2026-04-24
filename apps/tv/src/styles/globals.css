@@ -1,0 +1,4 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; }
+@keyframes pulse { 0%,100%{opacity:0.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.05)} }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }

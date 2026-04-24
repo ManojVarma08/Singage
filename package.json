@@ -1,0 +1,21 @@
+{
+  "name": "signage-ctrl",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "backend"
+  ],
+  "scripts": {
+    "dev:tv": "cd apps/tv && npm run dev",
+    "dev:web": "cd apps/web && npm run dev",
+    "build:tv": "cd apps/tv && npm run build",
+    "deploy:backend": "cd backend && npx serverless deploy",
+    "install:all": "npm install"
+  },
+  "dependencies": {
+    "html5-qrcode": "^2.3.8",
+    "qrcode.react": "^4.2.0"
+  }
+}
