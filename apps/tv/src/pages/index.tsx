@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { QRCodeCanvas } from 'qrcode.react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://wkilfvbytdazmnohksiu.supabase.co';
-const SUPABASE_KEY = 'yJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraWxmdmJ5dGRhem1ub2hrc2l1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNDI1NTgsImV4cCI6MjA5MjYxODU1OH0.3pZ6vHJXFmniWtMQo5KHZkovEwkuC4shaDw6FZOJtVE';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraWxmdmJ5dGRhem1ub2hrc2l1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNDI1NTgsImV4cCI6MjA5MjYxODU1OH0.3pZ6vHJXFmniWtMQo5KHZkovEwkuC4shaDw6FZOJtVE';
 const BUCKET = 'signage-media';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const TV_PINS: Record<string, string> = {
   TV1: '1111', TV2: '2222', TV3: '3333', TV4: '4444', TV5: '5555',
@@ -48,26 +49,33 @@ const CELL_SPANS: any = {
 
 const ZONE_COLORS = ['#2563eb', '#38bdf8', '#22c55e', '#a78bfa', '#f59e0b'];
 
-// ── Supabase helpers ──────────────────────────────────────────
+// ── Supabase REST helpers ─────────────────────────────────────
 const sbHeaders = {
   apikey: SUPABASE_KEY,
   Authorization: `Bearer ${SUPABASE_KEY}`,
   'Content-Type': 'application/json',
 };
 
-async function getTVState(tvId: string) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/tv_states?tv_id=eq.${tvId}&select=*`, {
-    headers: sbHeaders,
-  });
+async function getTVState(userId: string, tvId: string) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/tv_states?user_id=eq.${userId}&tv_id=eq.${tvId}&select=*`,
+    { headers: sbHeaders }
+  );
   const data = await res.json();
   return data?.[0] || null;
 }
 
-async function saveTVState(tvId: string, layoutId: string, cells: any[]) {
+async function saveTVState(userId: string, tvId: string, layoutId: string, cells: any[]) {
   await fetch(`${SUPABASE_URL}/rest/v1/tv_states`, {
     method: 'POST',
     headers: { ...sbHeaders, Prefer: 'resolution=merge-duplicates' },
-    body: JSON.stringify({ tv_id: tvId, layout_id: layoutId, cells, updated_at: Date.now() }),
+    body: JSON.stringify({
+      user_id: userId,
+      tv_id: tvId,
+      layout_id: layoutId,
+      cells,
+      updated_at: Date.now(),
+    }),
   });
 }
 
@@ -104,6 +112,88 @@ function TVIcon({ active = false, live = false, size = 'sm' }: { active?: boolea
   );
 }
 
+// ── Auth Screen: Sign Up + Login ──────────────────────────────
+function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => void }) {
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const handleAuth = async () => {
+    setMsg('');
+
+    if (!email || !password) {
+      setMsg('Email and password required');
+      return;
+    }
+
+    if (password.length < 6) {
+      setMsg('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (mode === 'signup') {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) {
+          setMsg(error.message);
+          return;
+        }
+        setMsg('Account created. Please login now.');
+        setMode('login');
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          setMsg(error.message);
+          return;
+        }
+        onAuthSuccess();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ width: '100vw', minHeight: '100vh', background: 'linear-gradient(135deg, #f8fbff, #eef5ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, system-ui, sans-serif', padding: 20 }}>
+      <div style={{ width: '100%', maxWidth: 430, background: '#ffffff', border: '1px solid #dbeafe', borderRadius: 28, padding: 30, boxShadow: '0 24px 70px rgba(15,23,42,0.12)' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
+          <TVIcon size="lg" active live />
+        </div>
+
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ color: '#0f172a', fontSize: 28, fontWeight: 900 }}>{mode === 'login' ? 'Login' : 'Create Account'}</div>
+          <div style={{ color: '#64748b', fontSize: 14, marginTop: 6 }}>
+            {mode === 'login' ? 'Login to control your signage TVs' : 'Sign up first, then login'}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: 12 }}>
+          <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1.5px solid #dbeafe', fontSize: 15, outline: 'none' }} />
+          <input type="password" placeholder="Password minimum 6 characters" value={password} onChange={e => setPassword(e.target.value)} style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1.5px solid #dbeafe', fontSize: 15, outline: 'none' }} />
+
+          {msg && (
+            <div style={{ background: msg.includes('created') ? '#ecfdf5' : '#fef2f2', color: msg.includes('created') ? '#16a34a' : '#dc2626', border: `1px solid ${msg.includes('created') ? '#bbf7d0' : '#fecaca'}`, borderRadius: 12, padding: '10px 12px', fontSize: 13, fontWeight: 800 }}>
+              {msg}
+            </div>
+          )}
+
+          <button onClick={handleAuth} disabled={loading} style={{ width: '100%', padding: 16, borderRadius: 16, border: 'none', background: 'linear-gradient(135deg, #2563eb, #38bdf8)', color: '#ffffff', fontSize: 16, fontWeight: 900, cursor: 'pointer', marginTop: 4 }}>
+            {loading ? 'Please wait...' : mode === 'login' ? 'Login' : 'Sign Up'}
+          </button>
+
+          <button onClick={() => { setMsg(''); setMode(mode === 'login' ? 'signup' : 'login'); }} style={{ width: '100%', padding: 13, borderRadius: 16, border: '1px solid #dbeafe', background: '#ffffff', color: '#2563eb', fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>
+            {mode === 'login' ? 'New user? Create account' : 'Already have account? Login'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Role Selection Screen ─────────────────────────────────────
 function RoleSelectScreen({ onSelect }: { onSelect: (role: 'tv' | 'controller') => void }) {
   return (
@@ -115,7 +205,7 @@ function RoleSelectScreen({ onSelect }: { onSelect: (role: 'tv' | 'controller') 
 
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ fontSize: 30, fontWeight: 900, color: '#0f172a' }}>Signage Control</div>
-          <div style={{ color: '#64748b', marginTop: 8 }}>Choose how you want to open this device</div>
+          <div style={{ color: '#64748b', marginTop: 8 }}>Choose how you want to use this device</div>
         </div>
 
         <button onClick={() => onSelect('tv')} style={{ width: '100%', padding: 20, borderRadius: 18, border: 'none', background: 'linear-gradient(135deg, #2563eb, #38bdf8)', color: '#ffffff', fontSize: 18, fontWeight: 900, cursor: 'pointer', marginBottom: 14 }}>
@@ -131,7 +221,7 @@ function RoleSelectScreen({ onSelect }: { onSelect: (role: 'tv' | 'controller') 
 }
 
 // ── PIN Screen ────────────────────────────────────────────────
-function PINScreen({ onLogin }: { onLogin: (tvId: string) => void }) {
+function PINScreen({ onLogin, title, subtitle }: { onLogin: (tvId: string) => void; title: string; subtitle: string }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
@@ -160,8 +250,8 @@ function PINScreen({ onLogin }: { onLogin: (tvId: string) => void }) {
       <div style={{ width: '100%', maxWidth: 430, background: 'rgba(255,255,255,0.92)', border: '1px solid #dbeafe', borderRadius: 28, boxShadow: '0 24px 70px rgba(15,23,42,0.12)', padding: 30 }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}><TVIcon size="lg" active /></div>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ color: '#0f172a', fontSize: 28, fontWeight: 900, letterSpacing: -0.5 }}>TV User Login</div>
-          <div style={{ color: '#64748b', fontSize: 14, marginTop: 6 }}>Enter TV PIN to open TV screen</div>
+          <div style={{ color: '#0f172a', fontSize: 28, fontWeight: 900, letterSpacing: -0.5 }}>{title}</div>
+          <div style={{ color: '#64748b', fontSize: 14, marginTop: 6 }}>{subtitle}</div>
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 14, marginBottom: 12, animation: shake ? 'shake 0.4s ease' : 'none' }}>
           {[0,1,2,3].map(i => (
@@ -201,88 +291,6 @@ function PINScreen({ onLogin }: { onLogin: (tvId: string) => void }) {
   );
 }
 
-// ── TV QR Code ────────────────────────────────────────────────
-function TVQRCode({ tvId }: { tvId: string }) {
-  const qrData = `SIGNAGE_CONNECT:${tvId}`;
-
-  return (
-    <div style={{ position: 'absolute', top: 18, right: 18, background: '#ffffff', borderRadius: 18, padding: 18, zIndex: 50, boxShadow: '0 14px 40px rgba(0,0,0,0.18)', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-      <QRCodeCanvas
-        value={qrData}
-        size={220}
-        level="H"
-        includeMargin={true}
-      />
-      <div style={{ marginTop: 8, color: '#0f172a', fontSize: 13, fontWeight: 900 }}>
-        Scan to control {tvId}
-      </div>
-      <div style={{ marginTop: 6, color: '#64748b', fontSize: 10, fontWeight: 700 }}>
-        {qrData}
-      </div>
-    </div>
-  );
-}
-
-// ── Controller QR Scanner ─────────────────────────────────────
-function ControllerScanner({ onConnect, onBack }: { onConnect: (tvId: string) => void; onBack: () => void }) {
-  useEffect(() => {
-    const scanner = new Html5QrcodeScanner(
-      'qr-reader',
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      false
-    );
-
-    scanner.render(
-      (decodedText) => {
-        let tvId = '';
-
-        if (decodedText.startsWith('SIGNAGE_CONNECT:')) {
-          tvId = decodedText.replace('SIGNAGE_CONNECT:', '').trim();
-        } else {
-          try {
-            const data = JSON.parse(decodedText);
-            if (data.type === 'SIGNAGE_CONNECT') {
-              tvId = data.tvId;
-            }
-          } catch {}
-        }
-
-        if (!tvId || !TV_PINS[tvId]) {
-          alert('Invalid TV QR code');
-          return;
-        }
-
-        scanner.clear().catch(() => {});
-        onConnect(tvId);
-      },
-      () => {}
-    );
-
-    return () => {
-      scanner.clear().catch(() => {});
-    };
-  }, [onConnect]);
-
-  return (
-    <div style={{ width: '100vw', minHeight: '100vh', background: '#f8fbff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, system-ui, sans-serif', padding: 20 }}>
-      <div style={{ width: '100%', maxWidth: 430, background: '#ffffff', border: '1px solid #dbeafe', borderRadius: 24, padding: 22, boxShadow: '0 24px 70px rgba(15,23,42,0.12)' }}>
-        <button onClick={onBack} style={{ background: '#ffffff', border: '1px solid #dbeafe', borderRadius: 12, padding: '9px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 900, color: '#334155', marginBottom: 16 }}>
-          ← Back
-        </button>
-
-        <div style={{ textAlign: 'center', marginBottom: 18 }}>
-          <div style={{ fontSize: 24, fontWeight: 900, color: '#0f172a' }}>Scan TV QR</div>
-          <div style={{ color: '#64748b', fontSize: 14, marginTop: 6 }}>
-            TV lo TV User open chesi PIN enter cheyyi. Tarvata QR scan cheyyi.
-          </div>
-        </div>
-
-        <div id="qr-reader" style={{ width: '100%' }} />
-      </div>
-    </div>
-  );
-}
-
 // ── TV Screen ─────────────────────────────────────────────────
 function TVScreen({ tvId, tvState }: { tvId: string; tvState: any }) {
   const layout = LAYOUTS.find(l => l.id === tvState?.layout_id);
@@ -294,7 +302,7 @@ function TVScreen({ tvId, tvState }: { tvId: string; tvState: any }) {
         <div style={{ width: '100%', maxWidth: 520, background: '#ffffff', border: '1px solid #dbeafe', borderRadius: 28, padding: 42, textAlign: 'center', boxShadow: '0 24px 70px rgba(15,23,42,0.08)' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}><TVIcon size="lg" /></div>
           <div style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', marginBottom: 8 }}>{tvId} is waiting</div>
-          <div style={{ color: '#64748b', fontSize: 15 }}>Scan QR with Controller and upload media to start displaying content.</div>
+          <div style={{ color: '#64748b', fontSize: 15 }}>Controller lo same PIN enter chesi photo upload cheyyi.</div>
           <div style={{ marginTop: 24, display: 'inline-flex', alignItems: 'center', gap: 8, background: '#ecfdf5', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 999, padding: '8px 14px', fontSize: 13, fontWeight: 800 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', animation: 'blink 1.2s ease infinite', display: 'inline-block' }} />
             Ready
@@ -323,7 +331,6 @@ function TVScreen({ tvId, tvState }: { tvId: string; tvState: any }) {
           </div>
         );
       })}
-
       {layout.pip && tvState.cells[1]?.mediaUrl && (
         <div style={{ position: 'absolute', bottom: 20, right: 20, width: '28%', height: '28%', border: '3px solid #2563eb', borderRadius: 14, overflow: 'hidden', zIndex: 10, boxShadow: '0 18px 40px rgba(0,0,0,0.3)', background: '#000000' }}>
           {tvState.cells[1].mediaType === 'video' ? (
@@ -333,7 +340,6 @@ function TVScreen({ tvId, tvState }: { tvId: string; tvState: any }) {
           )}
         </div>
       )}
-
       <div style={{ position: 'absolute', bottom: 18, left: 18, background: 'rgba(255,255,255,0.92)', borderRadius: 999, padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 8, zIndex: 20, boxShadow: '0 10px 30px rgba(0,0,0,0.18)' }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
         <span style={{ color: '#0f172a', fontSize: 12, fontWeight: 900 }}>{tvId}</span>
@@ -344,6 +350,9 @@ function TVScreen({ tvId, tvState }: { tvId: string; tvState: any }) {
 
 // ── Main App ──────────────────────────────────────────────────
 export default function App() {
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [appRole, setAppRole] = useState<'choose' | 'tv' | 'controller'>('choose');
   const [loggedInTVId, setLoggedInTVId] = useState<string | null>(null);
   const [sideTab, setSideTab] = useState<'tv' | 'phone'>('tv');
@@ -358,6 +367,23 @@ export default function App() {
   const [uploadStatus, setUploadStatus] = useState('');
   const [notif, setNotif] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setIsAuthed(!!data.session);
+      setAuthUserId(data.session?.user?.id || null);
+      setAuthChecked(true);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthed(!!session);
+      setAuthUserId(session?.user?.id || null);
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     const savedRole = localStorage.getItem('signage_app_role') as 'tv' | 'controller' | null;
@@ -375,19 +401,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!loggedInTVId) return;
+    if (!loggedInTVId || !authUserId) return;
 
     const poll = async () => {
       try {
-        const data = await getTVState(activeTVId);
-        if (data) setTvStates(p => ({ ...p, [activeTVId]: data }));
+        const data = await getTVState(authUserId, activeTVId);
+        if (data) {
+          setTvStates(p => ({ ...p, [activeTVId]: data }));
+        } else {
+          setTvStates(p => ({ ...p, [activeTVId]: null }));
+        }
       } catch {}
     };
 
     poll();
     const t = setInterval(poll, 2000);
     return () => clearInterval(t);
-  }, [activeTVId, loggedInTVId]);
+  }, [activeTVId, loggedInTVId, authUserId]);
 
   const selectRole = (role: 'tv' | 'controller') => {
     setAppRole(role);
@@ -396,7 +426,7 @@ export default function App() {
     if (role === 'controller') setSideTab('phone');
   };
 
-  const handleLogin = (tvId: string) => {
+  const handleTVLogin = (tvId: string) => {
     const tv = TV_LIST.find(t => t.id === tvId)!;
     setLoggedInTVId(tvId);
     setActiveTVId(tvId);
@@ -406,7 +436,7 @@ export default function App() {
     localStorage.setItem('signage_app_role', 'tv');
   };
 
-  const connectController = (tvId: string) => {
+  const handleControllerLogin = (tvId: string) => {
     const tv = TV_LIST.find(t => t.id === tvId)!;
     setLoggedInTVId(tvId);
     setActiveTVId(tvId);
@@ -418,6 +448,9 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    supabase.auth.signOut();
+    setIsAuthed(false);
+    setAuthUserId(null);
     setLoggedInTVId(null);
     setAppRole('choose');
     localStorage.removeItem('signage_tv_id');
@@ -431,8 +464,22 @@ export default function App() {
   const toast = (msg: string) => { setNotif(msg); setTimeout(() => setNotif(null), 3000); };
 
   const updateTV = async (tvId: string, layoutId: string, newCells: any[]) => {
-    setTvStates(p => ({ ...p, [tvId]: { tv_id: tvId, layout_id: layoutId, cells: newCells } }));
-    await saveTVState(tvId, layoutId, newCells);
+    if (!authUserId) {
+      toast('Please login again');
+      return;
+    }
+
+    setTvStates(p => ({
+      ...p,
+      [tvId]: {
+        user_id: authUserId,
+        tv_id: tvId,
+        layout_id: layoutId,
+        cells: newCells,
+      },
+    }));
+
+    await saveTVState(authUserId, tvId, layoutId, newCells);
   };
 
   const applyLayout = async (layoutId: string) => {
@@ -476,21 +523,57 @@ export default function App() {
     }
   };
 
+  if (!authChecked) {
+    return <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 900, color: '#2563eb' }}>Loading...</div>;
+  }
+
+  if (!isAuthed) {
+    return <AuthScreen onAuthSuccess={() => setIsAuthed(true)} />;
+  }
+
   if (appRole === 'choose') {
     return <RoleSelectScreen onSelect={selectRole} />;
   }
 
   if (appRole === 'tv' && !loggedInTVId) {
-    return <PINScreen onLogin={handleLogin} />;
+    return <PINScreen onLogin={handleTVLogin} title="TV User Login" subtitle="Enter TV PIN to open this TV screen" />;
   }
 
   if (appRole === 'controller' && !loggedInTVId) {
-    return <ControllerScanner onConnect={connectController} onBack={() => setAppRole('choose')} />;
+    return <PINScreen onLogin={handleControllerLogin} title="Controller Login" subtitle="Enter same TV PIN to control that TV" />;
   }
 
   const selectedLayout = LAYOUTS.find(l => l.id === selectedLayoutId);
   const activeTVInfo = TV_LIST.find(t => t.id === activeTVId)!;
   const loggedInTV = TV_LIST.find(t => t.id === loggedInTVId)!;
+
+  if (appRole === 'tv') {
+    return (
+      <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#000000', fontFamily: 'Inter, system-ui, sans-serif' }}>
+        <TVScreen tvId={activeTVId} tvState={tvStates[activeTVId]} />
+        <button
+          onClick={handleLogout}
+          style={{
+            position: 'fixed',
+            top: 14,
+            right: 14,
+            zIndex: 999,
+            background: 'rgba(255,255,255,0.9)',
+            border: '1px solid #e2e8f0',
+            borderRadius: 999,
+            padding: '8px 14px',
+            color: '#ef4444',
+            fontSize: 12,
+            fontWeight: 900,
+            cursor: 'pointer',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+          }}
+        >
+          Logout
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', background: '#f8fbff', color: '#0f172a' }}>
@@ -509,7 +592,7 @@ export default function App() {
 
         <div style={{ width: 54, height: 1, background: '#e2e8f0', margin: '16px 0' }} />
 
-        {TV_LIST.map(tv => {
+        {appRole === 'controller' && TV_LIST.map(tv => {
           const active = activeTVId === tv.id && sideTab === 'tv';
           const live = tvStates[tv.id]?.cells?.some((c: any) => c?.mediaUrl);
           return (
@@ -538,9 +621,8 @@ export default function App() {
         </header>
 
         {sideTab === 'tv' && (
-          <section style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+          <section style={{ flex: 1, overflow: 'hidden' }}>
             <TVScreen tvId={activeTVId} tvState={tvStates[activeTVId]} />
-            {appRole === 'tv' && <TVQRCode tvId={activeTVId} />}
           </section>
         )}
 
@@ -560,7 +642,7 @@ export default function App() {
                       <TVIcon size="lg" active live />
                       <div>
                         <div style={{ color: '#0f172a', fontWeight: 900, fontSize: 20 }}>Connected to {loggedInTV.name}</div>
-                        <div style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>{loggedInTV.location} · QR connected</div>
+                        <div style={{ color: '#64748b', fontSize: 14, marginTop: 4 }}>{loggedInTV.location} · Same account + same PIN</div>
                       </div>
                     </div>
                   </div>
@@ -584,20 +666,6 @@ export default function App() {
                       <span style={{ marginLeft: 'auto', fontSize: 26, color: '#94a3b8' }}>›</span>
                     </button>
                   )}
-
-                  <div className="section-label">Other Displays</div>
-                  <div style={{ display: 'grid', gap: 10 }}>
-                    {TV_LIST.filter(tv => tv.id !== loggedInTVId).map(tv => (
-                      <div key={tv.id} className="display-row">
-                        <TVIcon live={tvStates[tv.id]?.cells?.some((c: any) => c?.mediaUrl)} />
-                        <div>
-                          <div style={{ color: '#0f172a', fontSize: 14, fontWeight: 900 }}>{tv.name}</div>
-                          <div style={{ color: '#64748b', fontSize: 12 }}>{tv.location}</div>
-                        </div>
-                        <div style={{ marginLeft: 'auto', color: '#94a3b8', fontSize: 12 }}>PIN {TV_PINS[tv.id]}</div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )}
 
@@ -617,9 +685,7 @@ export default function App() {
                       return (
                         <button key={l.id} onClick={() => applyLayout(l.id)} className={`layout-card ${sel ? 'selected' : ''}`}>
                           <div style={{ width: '100%', aspectRatio: '16/9', background: '#f1f5f9', borderRadius: 10, overflow: 'hidden', marginBottom: 10, display: 'grid', gridTemplateColumns: l.cols, gridTemplateRows: l.rows, gap: 3, padding: 4, border: '1px solid #e2e8f0' }}>
-                            {Array.from({ length: l.cells }, (_, i) => (
-                              <div key={i} style={{ background: sel ? ZONE_COLORS[i % ZONE_COLORS.length] : '#cbd5e1', borderRadius: 5, ...(CELL_SPANS[l.id]?.[i] || {}) }} />
-                            ))}
+                            {Array.from({ length: l.cells }, (_, i) => <div key={i} style={{ background: sel ? ZONE_COLORS[i % ZONE_COLORS.length] : '#cbd5e1', borderRadius: 5, ...(CELL_SPANS[l.id]?.[i] || {}) }} />)}
                           </div>
                           <span style={{ fontSize: 12, fontWeight: 900, color: sel ? '#2563eb' : '#0f172a' }}>{l.name}</span>
                           <span style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>{l.cells} zones</span>
@@ -649,14 +715,8 @@ export default function App() {
                     {cells.map((cell, i) => (
                       <button key={i} onClick={() => setActiveCell(i)} className={`zone-card ${activeCell === i ? 'active' : ''}`}>
                         {cell.mediaUrl ? (
-                          cell.mediaType === 'image' ? (
-                            <img src={cell.mediaUrl} style={{ width: 84, height: 58, borderRadius: 10, objectFit: 'cover' }} alt="" />
-                          ) : (
-                            <div className="video-thumb">Video</div>
-                          )
-                        ) : (
-                          <div className="empty-zone">+</div>
-                        )}
+                          cell.mediaType === 'image' ? <img src={cell.mediaUrl} style={{ width: 84, height: 58, borderRadius: 10, objectFit: 'cover' }} alt="" /> : <div className="video-thumb">Video</div>
+                        ) : <div className="empty-zone">+</div>}
                         <span>Zone {i + 1}</span>
                       </button>
                     ))}
@@ -716,7 +776,6 @@ export default function App() {
         .action-icon { width: 52px; height: 52px; border-radius: 16px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 900; }
         .action-icon.light { background: #eff6ff; color: #2563eb; }
         .section-label { color: #64748b; font-size: 11px; font-weight: 900; letter-spacing: 1.6px; text-transform: uppercase; margin: 20px 0 12px; }
-        .display-row { background: #ffffff; border-radius: 18px; padding: 14px; display: flex; align-items: center; gap: 14px; border: 1px solid #e2e8f0; box-shadow: 0 8px 24px rgba(15,23,42,0.04); margin-bottom: 10px; }
         .back-btn { background: #ffffff; border: 1px solid #dbeafe; border-radius: 12px; padding: 9px 14px; cursor: pointer; font-size: 13px; font-weight: 900; color: #334155; }
         .view-tv-btn { margin-left: auto; background: #2563eb; border: none; border-radius: 12px; padding: 9px 14px; cursor: pointer; font-size: 13px; font-weight: 900; color: #ffffff; }
         .panel-header { background: #ffffff; border: 1px solid #dbeafe; border-radius: 22px; padding: 18px; display: flex; align-items: center; gap: 16px; margin-bottom: 18px; box-shadow: 0 12px 34px rgba(15,23,42,0.06); }
