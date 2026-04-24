@@ -358,7 +358,7 @@ export default function App() {
   const [sideTab, setSideTab] = useState<'tv' | 'phone'>('tv');
   const [activeTVId, setActiveTVId] = useState('TV1');
   const [tvStates, setTvStates] = useState<Record<string, any>>({});
-  const [phoneView, setPhoneView] = useState<'home' | 'layout' | 'media'>('home');
+  const [phoneView, setPhoneView] = useState<'home' | 'layout' | 'media' | 'switchTv'>('home');
   const [connectedTV, setConnectedTV] = useState<any>(null);
   const [selectedLayoutId, setSelectedLayoutId] = useState<string | null>(null);
   const [cells, setCells] = useState<any[]>([]);
@@ -443,6 +443,9 @@ export default function App() {
     setConnectedTV(tv);
     setSideTab('phone');
     setPhoneView('home');
+    setSelectedLayoutId(null);
+    setCells([]);
+    setActiveCell(0);
     localStorage.setItem('signage_tv_id', tvId);
     localStorage.setItem('signage_app_role', 'controller');
   };
@@ -616,7 +619,7 @@ export default function App() {
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
             <div className="top-pill blue"><span>{loggedInTV.name}</span><strong>PIN {TV_PINS[loggedInTVId]}</strong></div>
-            <div className="top-pill green"><span className="dot" /><strong>{appRole === 'tv' ? 'TV User' : 'Controller'}</strong></div>
+            <div className="top-pill green"><span className="dot" /><strong>Controller</strong></div>
           </div>
         </header>
 
@@ -635,6 +638,14 @@ export default function App() {
                 </div>
               )}
 
+              {phoneView === 'switchTv' && (
+                <PINScreen
+                  onLogin={handleControllerLogin}
+                  title="Change TV"
+                  subtitle="Enter another TV PIN to switch controller"
+                />
+              )}
+
               {phoneView === 'home' && (
                 <div>
                   <div className="hero-card">
@@ -646,6 +657,15 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+
+                  <button onClick={() => setPhoneView('switchTv')} className="secondary-action">
+                    <div className="action-icon light">⇄</div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ color: '#0f172a', fontSize: 16, fontWeight: 900 }}>Change TV</div>
+                      <div style={{ color: '#64748b', fontSize: 13, marginTop: 3 }}>Switch from {loggedInTV.name} to another TV using PIN</div>
+                    </div>
+                    <span style={{ marginLeft: 'auto', fontSize: 26, color: '#94a3b8' }}>›</span>
+                  </button>
 
                   <button onClick={() => { setConnectedTV(loggedInTV); setPhoneView('layout'); }} className="primary-action">
                     <div className="action-icon">▦</div>
