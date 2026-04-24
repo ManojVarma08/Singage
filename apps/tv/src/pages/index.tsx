@@ -579,8 +579,8 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', background: '#f8fbff', color: '#0f172a' }}>
-      <aside style={{ width: 108, background: '#ffffff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '18px 10px', flexShrink: 0, overflowY: 'auto', boxShadow: '6px 0 24px rgba(15,23,42,0.04)' }}>
+    <div className="app-shell" style={{ display: 'flex', height: '100vh', width: '100vw', fontFamily: 'Inter, system-ui, sans-serif', overflow: 'hidden', background: '#f8fbff', color: '#0f172a' }}>
+      <aside className="app-sidebar" style={{ width: 108, background: '#ffffff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '18px 10px', flexShrink: 0, overflowY: 'auto', boxShadow: '6px 0 24px rgba(15,23,42,0.04)' }}>
         <div style={{ marginBottom: 20 }}><TVIcon size="md" active /></div>
 
         <button onClick={() => setSideTab('tv')} className={`nav-btn ${sideTab === 'tv' ? 'active' : ''}`}>
@@ -610,8 +610,8 @@ export default function App() {
         </div>
       </aside>
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <header style={{ height: 74, background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(14px)', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 14, borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
+      <main className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <header className="app-header" style={{ height: 74, background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(14px)', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: 14, borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
           <TVIcon size="sm" active={sideTab === 'tv'} live={sideTab === 'tv'} />
           <div>
             <div style={{ color: '#0f172a', fontWeight: 900, fontSize: 16 }}>{sideTab === 'tv' ? activeTVInfo?.name : 'Phone Control'}</div>
@@ -631,7 +631,7 @@ export default function App() {
 
         {sideTab === 'phone' && appRole === 'controller' && (
           <section style={{ flex: 1, overflowY: 'auto', background: '#f8fbff' }}>
-            <div style={{ maxWidth: 620, margin: '0 auto', padding: 24 }}>
+            <div className="phone-container" style={{ maxWidth: 620, margin: '0 auto', padding: 24 }}>
               {notif && (
                 <div style={{ background: notif.includes('failed') ? '#fef2f2' : '#ecfdf5', color: notif.includes('failed') ? '#dc2626' : '#16a34a', padding: '12px 16px', borderRadius: 14, fontSize: 13, fontWeight: 800, marginBottom: 18, border: `1px solid ${notif.includes('failed') ? '#fecaca' : '#bbf7d0'}` }}>
                   {notif}
@@ -699,7 +699,7 @@ export default function App() {
                       <div style={{ color: '#64748b', fontSize: 13 }}>Select a screen layout</div>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                  <div className="layout-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                     {LAYOUTS.map(l => {
                       const sel = selectedLayoutId === l.id;
                       return (
@@ -718,7 +718,7 @@ export default function App() {
 
               {phoneView === 'media' && connectedTV && selectedLayout && (
                 <div>
-                  <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
+                  <div className="media-top-actions" style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
                     <button onClick={() => setPhoneView('layout')} className="back-btn">← Layout</button>
                     <button onClick={() => setPhoneView('home')} className="back-btn">Home</button>
                     <button onClick={() => { setActiveTVId(connectedTV.id); setSideTab('tv'); }} className="view-tv-btn">View TV →</button>
@@ -731,7 +731,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="section-label">Select Zone</div>
-                  <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, marginBottom: 18 }}>
+                  <div className="zone-scroll" style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8, marginBottom: 18 }}>
                     {cells.map((cell, i) => (
                       <button key={i} onClick={() => setActiveCell(i)} className={`zone-card ${activeCell === i ? 'active' : ''}`}>
                         {cell.mediaUrl ? (
@@ -775,7 +775,8 @@ export default function App() {
 
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { overflow: hidden; }
+        html, body, #__next { width: 100%; min-height: 100%; }
+        body { overflow: hidden; -webkit-font-smoothing: antialiased; }
         button { font-family: inherit; }
         .nav-btn { width: 82px; padding: 12px 0; border-radius: 16px; border: 1px solid transparent; background: transparent; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; margin-bottom: 8px; font-size: 11px; font-weight: 900; transition: all 0.15s ease; }
         .nav-btn:hover { background: #f1f5f9; }
@@ -817,6 +818,173 @@ export default function App() {
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+
+        @media (max-width: 768px) {
+          body { overflow: auto; }
+          .app-shell {
+            flex-direction: column !important;
+            min-height: 100dvh !important;
+            height: 100dvh !important;
+            overflow: hidden !important;
+          }
+          .app-sidebar {
+            order: 2 !important;
+            width: 100% !important;
+            height: 72px !important;
+            min-height: 72px !important;
+            border-right: none !important;
+            border-top: 1px solid #e2e8f0 !important;
+            flex-direction: row !important;
+            justify-content: flex-start !important;
+            align-items: center !important;
+            gap: 8px !important;
+            padding: 8px 10px !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            box-shadow: 0 -8px 24px rgba(15,23,42,0.06) !important;
+          }
+          .app-sidebar > div:first-child,
+          .app-sidebar > div[style*="width: 54"],
+          .tv-side-btn,
+          .logout-btn {
+            display: none !important;
+          }
+          .nav-btn {
+            width: auto !important;
+            min-width: 112px !important;
+            height: 52px !important;
+            flex-direction: row !important;
+            justify-content: center !important;
+            padding: 0 14px !important;
+            margin: 0 !important;
+            border-radius: 16px !important;
+            font-size: 12px !important;
+          }
+          .app-main {
+            order: 1 !important;
+            height: calc(100dvh - 72px) !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+          }
+          .app-header {
+            height: auto !important;
+            min-height: 64px !important;
+            padding: 10px 12px !important;
+            gap: 10px !important;
+            flex-wrap: wrap !important;
+          }
+          .app-header > div:nth-child(2) {
+            min-width: 0 !important;
+            flex: 1 !important;
+          }
+          .app-header > div:nth-child(2) div:first-child {
+            font-size: 14px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+          }
+          .app-header > div:last-child {
+            width: 100% !important;
+            margin-left: 0 !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+          }
+          .top-pill {
+            padding: 6px 10px !important;
+            font-size: 11px !important;
+            max-width: 48% !important;
+            overflow: hidden !important;
+            white-space: nowrap !important;
+          }
+          .phone-container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 14px 12px 22px !important;
+          }
+          .hero-card, .panel-header {
+            border-radius: 18px !important;
+            padding: 14px !important;
+            margin-bottom: 14px !important;
+          }
+          .hero-card > div, .panel-header {
+            gap: 12px !important;
+          }
+          .primary-action, .secondary-action, .media-action {
+            border-radius: 16px !important;
+            padding: 14px !important;
+            margin-bottom: 12px !important;
+            gap: 12px !important;
+          }
+          .action-icon {
+            width: 44px !important;
+            height: 44px !important;
+            min-width: 44px !important;
+            border-radius: 14px !important;
+            font-size: 20px !important;
+          }
+          .layout-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+          }
+          .layout-card {
+            padding: 10px !important;
+            border-radius: 16px !important;
+          }
+          .zone-scroll {
+            gap: 10px !important;
+            margin-left: -2px !important;
+            padding-left: 2px !important;
+          }
+          .zone-card {
+            border-radius: 16px !important;
+            padding: 7px !important;
+          }
+          .empty-zone,
+          .video-thumb,
+          .zone-card img {
+            width: 72px !important;
+            height: 50px !important;
+          }
+          .push-info {
+            border-radius: 14px !important;
+            padding: 12px 14px !important;
+            font-size: 13px !important;
+          }
+          .media-top-actions {
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+          }
+          .back-btn, .view-tv-btn {
+            flex: 1 !important;
+            padding: 10px 12px !important;
+            font-size: 12px !important;
+            text-align: center !important;
+            margin-left: 0 !important;
+          }
+          .section-label {
+            font-size: 10px !important;
+            margin: 16px 0 10px !important;
+          }
+          .upload-box {
+            border-radius: 18px !important;
+            padding: 34px 16px !important;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .layout-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+          .primary-action div[style*="font-size: 16"],
+          .secondary-action div[style*="font-size: 16"] {
+            font-size: 14px !important;
+          }
+          .media-badge {
+            min-width: 52px !important;
+            height: 42px !important;
+            font-size: 12px !important;
+          }
+        }
       `}</style>
     </div>
   );
