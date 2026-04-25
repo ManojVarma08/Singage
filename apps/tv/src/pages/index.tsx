@@ -147,7 +147,13 @@ function AuthScreen({ onAuthSuccess }: { onAuthSuccess: () => void }) {
 
     try {
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: 'https://singage-tv.vercel.app',
+          },
+        });
         if (error) {
           setMsg(error.message);
           return;
@@ -379,18 +385,44 @@ export default function App() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthed(!!data.session);
-      setAuthUserId(data.session?.user?.id || null);
-      setAuthChecked(true);
-    });
+    let mounted = true;
+
+    const fallbackTimer = setTimeout(() => {
+      if (mounted) {
+        setIsAuthed(false);
+        setAuthUserId(null);
+        setAuthChecked(true);
+      }
+    }, 3000);
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!mounted) return;
+
+        clearTimeout(fallbackTimer);
+        setIsAuthed(!!data.session);
+        setAuthUserId(data.session?.user?.id || null);
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+
+        clearTimeout(fallbackTimer);
+        setIsAuthed(false);
+        setAuthUserId(null);
+        setAuthChecked(true);
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthed(!!session);
       setAuthUserId(session?.user?.id || null);
+      setAuthChecked(true);
     });
 
     return () => {
+      mounted = false;
+      clearTimeout(fallbackTimer);
       listener.subscription.unsubscribe();
     };
   }, []);
@@ -546,7 +578,7 @@ export default function App() {
     setUploading(true);
 
     try {
-      setUploadStatus(type === 'video' ? 'Uploading video. Large videos can take a few minutes...' : 'Uploading image...');
+      setUploadStatus(type === 'video' ? 'Uploading video. Long videos can take several minutes depending on file size and internet speed...' : 'Uploading image...');
       const publicUrl = await uploadToSupabase(file);
 
       setUploadStatus('Publishing to TV...');
@@ -751,16 +783,14 @@ export default function App() {
                     <span style={{ marginLeft: 'auto', fontSize: 26 }}>›</span>
                   </button>
 
-                  {selectedLayoutId && (
-                    <button onClick={() => setPhoneView('media')} className="secondary-action">
-                      <div className="action-icon light">□</div>
-                      <div style={{ textAlign: 'left' }}>
-                        <div style={{ color: '#0f172a', fontSize: 16, fontWeight: 900 }}>Push Media</div>
-                        <div style={{ color: '#64748b', fontSize: 13, marginTop: 3 }}>Upload image or video to selected zones</div>
-                      </div>
-                      <span style={{ marginLeft: 'auto', fontSize: 26, color: '#94a3b8' }}>›</span>
-                    </button>
-                  )}
+                  <button onClick={() => setPhoneView(selectedLayoutId ? 'media' : 'layout')} className="secondary-action">
+                    <div className="action-icon light">□</div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ color: '#0f172a', fontSize: 16, fontWeight: 900 }}>Push Media</div>
+                      <div style={{ color: '#64748b', fontSize: 13, marginTop: 3 }}>{selectedLayoutId ? 'Upload image or video to selected zones' : 'Choose a layout first, then upload media'}</div>
+                    </div>
+                    <span style={{ marginLeft: 'auto', fontSize: 26, color: '#94a3b8' }}>›</span>
+                  </button>
                 </div>
               )}
 
@@ -828,7 +858,7 @@ export default function App() {
                       <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={handleFile} />
                       {[
                         { title: 'Upload Image', sub: 'JPG or PNG → TV display', label: 'Image' },
-                        { title: 'Upload Video', sub: 'MP4 video → TV display. Large videos may take a few minutes.', label: 'Video' },
+                        { title: 'Upload Video', sub: 'MP4 video → TV display. Long videos may take several minutes.', label: 'Video' },
                       ].map(item => (
                         <button key={item.title} onClick={() => fileRef.current?.click()} className="media-action">
                           <div className="media-badge">{item.label}</div>
